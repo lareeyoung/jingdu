@@ -22,6 +22,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT_FILES = ("build.command", ".gitignore", ".gitattributes", "README.md")
+SOURCE_SCREENSHOT_FILES = ("docs/screenshots/overview.jpg", "docs/screenshots/script.jpg",
+                           "docs/screenshots/subtitles.jpg", "docs/screenshots/remix.jpg",
+                           "docs/screenshots/README.md")
 ENGINE_FILES = ("README.txt", "LICENSE-whisper.cpp", "LICENSE-whisper-model", "THIRD_PARTY_NOTICES.txt")
 SOURCE_GLOBS = ("Sources/*.swift", "Tests/*.swift", "Tests/*.py", "Scripts/*.py", "Scripts/*.md")
 TEXT_SUFFIXES = {".swift", ".py", ".md", ".txt", ".command"}
@@ -57,6 +60,8 @@ def checked_file(root, relative):
 
 def source_files(root):
     selected = {Path(name) for name in SOURCE_ROOT_FILES if (root / name).exists()}
+    selected.update(Path(name) for name in SOURCE_SCREENSHOT_FILES
+                    if (root / name).exists() or (root / name).is_symlink())
     for pattern in SOURCE_GLOBS:
         selected.update(path.relative_to(root) for path in root.glob(pattern) if not path.name.startswith("."))
     selected.update(Path("Resources") / name for name in ("Info.plist", "AppIcon.icns"))

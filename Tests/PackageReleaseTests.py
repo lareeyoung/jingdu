@@ -120,6 +120,34 @@ class PackageReleaseTests(unittest.TestCase):
             digest, filename = line.split("  ")
             self.assertEqual(release.sha256(first / filename), digest)
 
+    def test_source_archive_includes_only_approved_screenshot_documentation(self):
+        expected = {"docs/screenshots/" + name for name in
+                    ("overview.jpg", "script.jpg", "subtitles.jpg", "remix.jpg", "README.md")}
+        for relative in expected:
+            self.write(relative, "approved screenshot fixture: " + relative)
+        for relative in ("docs/private-notes.md", "docs/screenshots/unreviewed.jpg",
+                         "docs/screenshots/._overview.jpg", "docs/screenshots/source-video.mp4"):
+            self.write(relative, "must not ship")
+        output = self.make_package(source_only=True)
+        contents = self.archive(output, "source")
+        documentation = {name.split("/", 1)[1]: data for name, data in contents.items()
+                         if name.split("/", 1)[1].startswith("docs/")}
+        self.assertEqual(set(documentation), expected)
+        for relative, data in documentation.items():
+            self.assertEqual(data, (self.root / relative).read_bytes())
+
+    def test_screenshot_allowlist_retains_symlink_and_text_privacy_checks(self):
+        external = self.work / "external.jpg"; external.write_bytes(b"private fixture")
+        link = self.root / "docs/screenshots/overview.jpg"
+        link.parent.mkdir(parents=True)
+        link.symlink_to(external)
+        with self.assertRaisesRegex(release.ReleaseError, "普通文件"):
+            self.make_package(source_only=True)
+        link.unlink()
+        self.write("docs/screenshots/README.md", '// /Us' + 'ers/private-person/Documents/video\n')
+        with self.assertRaisesRegex(release.ReleaseError, "个人"):
+            self.make_package(source_only=True)
+
     def test_full_release_only_signs_temporary_app_ad_hoc(self):
         original_engine = (self.root / "Resources/SubtitleEngine/whisper-cli").read_bytes()
         output = self.make_package()
