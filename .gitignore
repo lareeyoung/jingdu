@@ -1,0 +1,71 @@
+# macOS metadata, including AppleDouble files created on external drives.
+.DS_Store
+._*
+.Spotlight-V100/
+.Trashes/
+.fseventsd/
+
+# Local editor state and caches.
+.codex/
+.openai/
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+
+# Build products and release archives belong in release storage, not Git.
+.build/
+build/
+Build/
+DerivedData/
+.swiftpm/
+.jingdu-build.*/
+*.app/
+*.dSYM/
+*.o
+*.swiftmodule
+*.swiftdoc
+*.swiftsourceinfo
+dist/
+release/
+releases/
+Releases/
+*.zip
+*.dmg
+*.pkg
+
+# The source tree rebuilds the decoder; model weights are installed separately.
+/Resources/SubtitleEngine/whisper-cli
+/Resources/SubtitleEngine/.whisper-cli.*
+*.bin
+*.gguf
+*.safetensors
+*.onnx
+
+# Private configuration, signing material, and user data must stay local.
+.env
+.env.*
+!.env.example
+private/
+BuildSigning/
+*.keychain
+*.keychain-db
+*.p12
+*.pfx
+*.pem
+*.key
+*.der
+*.cer
+*.crt
+identity.json
+library.json
+library.json.*
+ScriptResponses/
+SubtitleModels/
+
+# Historical development notes contain workstation paths and internal endpoints.
+# Keep the new distribution documentation as the public entry point instead.
+/README-模型.md
+/使用说明.md
+/更新记录.md
+/验证记录-*.md
