@@ -51,8 +51,9 @@ async function runSmoke({ win, media, model, saveLibrary, probeFile }) {
   if (!(await js(`Math.abs(document.querySelector('#video').currentTime-${secondSourceStart + 0.2})<0.03`))) throw new Error('Disabled follow still seeks');
   await click('#follow');
   await click('[data-action="play"]');
-  await until(`document.querySelector('#video').currentTime>${secondSourceStart + 0.4} && !document.querySelector('#video').paused`, 'play after second media seek');
+  await until(`document.querySelector('#video').currentTime>${secondSourceStart + 1.1} && !document.querySelector('#video').paused`, 'play after second media seek');
   await click('[data-action="play"]');
+  if (!(await js('document.querySelector(".context-shot.is-current")?.dataset.seek === "3"'))) throw new Error('Adjacent shot previews did not follow playback');
   // Subsequent playback and seeks must preserve both language rows.
   if (!(await js(`document.querySelector('#reader [data-cue-id="${cues[1].id}"] .translation').textContent === '这是测试。'`))) throw new Error('Translation row missing');
   state.media = { probe: true, transcode: true, rendererPlayback: true, seek: true, frameStep: true, bilingualFollow: true };

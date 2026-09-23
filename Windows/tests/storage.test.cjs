@@ -133,6 +133,21 @@ test('atomic JSON failure preserves destination and cleans temporary output', as
   await atomicJSON(file('okay.json'), { valid: true });
   assert.deepEqual(await readJSON(file('okay.json')), { valid: true });
 });
+test('temporary Windows rename locks retry without removing the last good file', async t => {
+  const { file } = await fixture(t), target = file('locked.json');
+  await atomicJSON(target, { previous: true });
+  const original = fs.rename; let attempts = 0;
+  fs.rename = async (from, to) => {
+    if (to === target && attempts++ < 2) {
+      assert.deepEqual(await readJSON(target), { previous: true });
+      throw Object.assign(new Error('temporary reader lock'), { code: 'EPERM' });
+    }
+    return original(from, to);
+  };
+  try { await atomicJSON(target, { updated: true }); }
+  finally { fs.rename = original; }
+  assert.equal(attempts, 3); assert.deepEqual(await readJSON(target), { updated: true });
+});
 test('malformed JSON never silently falls back or leaks contents in error text', async t => {
   const { file } = await fixture(t);
   const broken = '{"secret":"FAKE-PARSE-ONLY-KEY",'; await fs.writeFile(file('bad.json'), broken);

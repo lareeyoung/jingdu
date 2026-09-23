@@ -7,7 +7,15 @@ async function atomicJSON(filename, data) {
   const temp = filename + '.' + crypto.randomUUID() + '.tmp';
   try {
     await fs.writeFile(temp, JSON.stringify(data, null, 2), { mode: 0o600 });
-    await fs.rename(temp, filename);
+    // Windows readers and virus scanners can briefly hold a rename lock.
+    // Retry the atomic replacement without unlinking the last good file.
+    for (let attempt = 0; ; attempt++) {
+      try { await fs.rename(temp, filename); break; }
+      catch (error) {
+        if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || attempt >= 9) throw error;
+        await new Promise(resolve => setTimeout(resolve, Math.min(250, 25 * 2 ** attempt)));
+      }
+    }
   } finally { await fs.rm(temp, { force: true }).catch(() => {}); }
 }
 async function readJSON(filename, fallback) {
