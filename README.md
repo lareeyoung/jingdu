@@ -4,9 +4,11 @@
 
 镜读是一款 macOS 拉片学习工具，适合拆解 AI 短视频、广告和短片：对照镜头、脚本、字幕和声音，记录方法，再把想尝试的片段收进灵感空间做混剪练习。
 
-当前为 **1.5.3 同事测试版**。支持 **Apple Silicon（arm64，M1 及更新芯片）和 macOS 14+**，暂不提供 Intel 版本。
+Mac 当前为 **1.5.3 同事测试版**。支持 **Apple Silicon（arm64，M1 及更新芯片）和 macOS 14+**，暂不提供 Intel 版本。
 
 [下载安装包](https://github.com/lareeyoung/jingdu/releases/tag/v1.5.3) · [看界面与用法](#用四个场景认识镜读) · [安装说明](Scripts/DISTRIBUTION.md)
+
+**Windows 同事测试版正在开发与测试中**，面向 Windows 10 / 11 x64。第一期聚焦拉片、镜头笔记、脚本与多语言字幕、灵感片段收集；暂不包含音乐编辑和混剪成片导出。见 [Windows 功能范围、使用与构建说明](Windows/README.md)。下方截图和安装说明对应 Mac 版。
 
 ## 用四个场景认识镜读
 

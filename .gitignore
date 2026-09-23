@@ -69,3 +69,17 @@ SubtitleModels/
 /使用说明.md
 /更新记录.md
 /验证记录-*.md
+# Windows build outputs and downloaded engines
+Windows/node_modules/
+Windows/dist/
+Windows/resources/*.exe
+Windows/resources/*.dll
+Windows/resources/*.bin
+Windows/resources/media-licenses/
+Windows/resources/whisper-build.json
+Windows/resources/LICENSE-whisper.cpp.txt
+Windows/resources/THIRD-PARTY-NOTICES.txt
+Windows/resources/*.ico
+Windows/validation/
+Windows/resources/runtime-build.json
+Windows/resources/NOTICE-Microsoft-Runtime.txt

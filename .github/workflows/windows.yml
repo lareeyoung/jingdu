@@ -1,0 +1,175 @@
+name: Windows colleague preview
+
+on:
+  push:
+    branches: [main, codex/windows-preview]
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: Windows
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: Windows/package-lock.json
+      - name: Install locked build dependencies
+        run: npm ci
+      - name: Prepare pinned media engines
+        run: |
+          npm run prepare:media
+          if ($LASTEXITCODE -ne 0) { throw 'Media preparation failed.' }
+          npm run prepare:whisper
+          if ($LASTEXITCODE -ne 0) { throw 'Whisper preparation failed.' }
+          ./scripts/prepare-runtime.ps1
+      - name: Execute bundled engines and prepare synthetic video
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path validation -Force | Out-Null
+          foreach ($engine in @('ffmpeg', 'ffprobe', 'whisper')) {
+            $file = if ($engine -eq 'whisper') { 'whisper-cli.exe' } else { "$engine.exe" }
+            $argument = if ($engine -eq 'whisper') { '--help' } else { '-version' }
+            $exe = (Resolve-Path "resources/$file").Path
+            $process = Start-Process -FilePath $exe -ArgumentList $argument -Wait -PassThru -NoNewWindow -RedirectStandardOutput "validation/$engine.stdout.log" -RedirectStandardError "validation/$engine.stderr.log"
+            @{ exitCode = $process.ExitCode } | ConvertTo-Json | Set-Content "validation/$engine.json" -Encoding utf8
+            Get-Content "validation/$engine.stdout.log", "validation/$engine.stderr.log"
+            if ($process.ExitCode -ne 0) { throw "$file failed to start: $($process.ExitCode)" }
+          }
+          $ffmpegPath = (Resolve-Path 'resources/ffmpeg.exe').Path
+          $ffprobePath = (Resolve-Path 'resources/ffprobe.exe').Path
+          "FFMPEG=$ffmpegPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "FFPROBE=$ffprobePath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $video = Join-Path $env:RUNNER_TEMP 'jingdu-smoke-fixture.mp4'
+          & $ffmpegPath -hide_banner -loglevel error -y -f lavfi -i 'testsrc2=size=960x540:rate=30:duration=12' -f lavfi -i 'sine=frequency=440:sample_rate=48000:duration=12' -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest $video
+          if ($LASTEXITCODE -ne 0) { throw 'Synthetic video creation failed.' }
+          "JINGDU_SMOKE_VIDEO=$video" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Run offline tests with actual media tools
+        run: |
+          $process = Start-Process -FilePath $env:ComSpec -ArgumentList '/d', '/c', 'npm test' -Wait -PassThru -NoNewWindow -RedirectStandardOutput 'validation/tests.stdout.log' -RedirectStandardError 'validation/tests.stderr.log'
+          @{ exitCode = $process.ExitCode } | ConvertTo-Json | Set-Content 'validation/tests.json' -Encoding utf8
+          Get-Content 'validation/tests.stdout.log', 'validation/tests.stderr.log'
+          if ($process.ExitCode -ne 0) { throw "Tests failed: $($process.ExitCode)" }
+      - name: Verify development renderer playback and seek
+        timeout-minutes: 4
+        run: |
+          $process = Start-Process -FilePath $env:ComSpec -ArgumentList '/d', '/c', 'npm run smoke' -Wait -PassThru -NoNewWindow -RedirectStandardOutput 'validation/development-smoke.stdout.log' -RedirectStandardError 'validation/development-smoke.stderr.log'
+          @{ exitCode = $process.ExitCode } | ConvertTo-Json | Set-Content 'validation/development-smoke.json' -Encoding utf8
+          Get-Content 'validation/development-smoke.stdout.log', 'validation/development-smoke.stderr.log'
+          if ($process.ExitCode -ne 0) { throw "Development smoke failed: $($process.ExitCode)" }
+      - name: Package NSIS installer and portable ZIP
+        run: npm run package:win
+      - name: Verify packaged renderer playback and seek
+        timeout-minutes: 4
+        run: |
+          $exe = (Resolve-Path 'dist/win-unpacked/镜读.exe').Path
+          $process = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -Wait -PassThru -NoNewWindow -RedirectStandardOutput 'validation/packaged-smoke.stdout.log' -RedirectStandardError 'validation/packaged-smoke.stderr.log'
+          @{ exitCode = $process.ExitCode } | ConvertTo-Json | Set-Content 'validation/packaged-smoke.json' -Encoding utf8
+          Get-Content 'validation/packaged-smoke.stdout.log', 'validation/packaged-smoke.stderr.log'
+          if ($process.ExitCode -ne 0) { throw "Packaged smoke failed: $($process.ExitCode)" }
+      - name: Verify evidence and calculate release checksums
+        run: node scripts/release-manifest.cjs
+      - name: Upload verified release files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jingdu-windows-release
+          path: |
+            Windows/dist/Jingdu-1.6.0-beta.1-Windows-x64.exe
+            Windows/dist/Jingdu-1.6.0-beta.1-Windows-x64.zip
+            Windows/dist/RELEASE.json
+            Windows/dist/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jingdu-windows-validation
+          path: Windows/validation/
+          if-no-files-found: warn
+          retention-days: 14
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v1.6.0-beta.1-win
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: jingdu-windows-release
+          path: release
+      - name: Verify downloaded release files
+        working-directory: release
+        run: |
+          set -euo pipefail
+          sha256sum -c SHA256SUMS
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('RELEASE.json').read_text())
+          assert manifest['gitSHA'] == os.environ['GITHUB_SHA'], 'Commit mismatch'
+          assert manifest['tag'] == os.environ['RELEASE_TAG'], 'Tag mismatch'
+          assert manifest['platform'] == 'windows-x64', 'Platform mismatch'
+          assert {f['name'] for f in manifest['files']} == {'Jingdu-1.6.0-beta.1-Windows-x64.exe', 'Jingdu-1.6.0-beta.1-Windows-x64.zip'}
+          for file in manifest['files']:
+              assert Path(file['name']).stat().st_size == file['size'], 'File size mismatch'
+          PY
+      - name: Create immutable colleague prerelease
+        working-directory: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          # An existing release is never updated, and an orphaned tag is not reused.
+          if gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > existing.json 2> lookup-error.txt; then
+            echo "::notice::Release $RELEASE_TAG already exists; verified artifacts remain attached to this workflow run. No assets were changed."
+            echo "Release $RELEASE_TAG already exists. Publication skipped without replacing assets." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif ! grep -q 'HTTP 404' lookup-error.txt; then
+            cat lookup-error.txt >&2
+            exit 1
+          fi
+          if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" > existing-tag.json 2> tag-error.txt; then
+            echo "::error::Tag $RELEASE_TAG already exists without a release. Refusing to publish against an unverified existing tag."
+            exit 1
+          elif ! grep -q 'HTTP 404' tag-error.txt; then
+            cat tag-error.txt >&2
+            exit 1
+          fi
+          cat > release-notes.md <<'NOTES'
+          Windows x64 同事测试版。提供安装程序（EXE）和免安装 ZIP。
+
+          已在 Windows Server 2022 构建环境验证媒体引擎启动、离线测试，以及开发版和打包版的实际视频播放、跳转、转码。具体范围、源码提交和文件校验值见 RELEASE.json 与 SHA256SUMS。
+
+          此版本未签名，Windows SmartScreen 可能提示未知发布者。尚未验证安装/卸载、真实 Whisper 模型推理或 Seed 服务请求。Whisper 模型需自行准备，API Key 由使用者在应用设置中填写，发布包不包含个人素材和账户。
+          NOTES
+          gh release create "$RELEASE_TAG" \
+            Jingdu-1.6.0-beta.1-Windows-x64.exe \
+            Jingdu-1.6.0-beta.1-Windows-x64.zip SHA256SUMS RELEASE.json \
+            --repo "$GH_REPO" --target "$GITHUB_SHA" --prerelease \
+            --title '镜读 Windows 1.6.0 同事测试版' --notes-file release-notes.md

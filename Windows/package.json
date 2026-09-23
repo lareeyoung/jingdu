@@ -1,0 +1,62 @@
+{
+  "name": "jingdu-windows",
+  "productName": "镜读",
+  "version": "1.6.0-beta.1",
+  "description": "镜读 Windows 同事测试版：镜头、脚本、字幕与创作笔记",
+  "author": "Jingdu contributors",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.*",
+    "prepare:media": "node scripts/prepare-media.cjs",
+    "prepare:whisper": "node scripts/prepare-whisper.cjs",
+    "package:win": "electron-builder --win nsis zip --x64 --publish never",
+    "smoke": "electron . --smoke-test"
+  },
+  "devDependencies": {
+    "electron": "44.4.4",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "studio.jingdu.windows",
+    "productName": "镜读",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "renderer/**",
+      "shared/**",
+      "package.json",
+      "assets/icon.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "tools",
+        "filter": [
+          "**/*",
+          "!._*"
+        ]
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "artifactName": "Jingdu-${version}-Windows-${arch}.${ext}",
+      "signAndEditExecutable": true,
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
