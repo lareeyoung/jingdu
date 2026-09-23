@@ -3,7 +3,7 @@ name: Windows colleague preview
 on:
   push:
     branches: [main, codex/windows-preview]
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', '.github/workflows/windows.yml', '.gitattributes', 'Resources/SubtitleEngine/LICENSE-whisper.cpp']
   workflow_dispatch:
 
 permissions:
