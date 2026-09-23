@@ -8,12 +8,18 @@ async function atomicJSON(filename, data) {
   try {
     await fs.writeFile(temp, JSON.stringify(data, null, 2), { mode: 0o600 });
     // Windows readers and virus scanners can briefly hold a rename lock.
-    // Retry the atomic replacement without unlinking the last good file.
+    // A short, bounded retry cadence can catch the gaps between readers;
+    // ten increasingly sparse attempts can miss every gap under load.
+    // Never unlink the last good file to work around a locked destination.
+    const retryUntil = performance.now() + 5000;
     for (let attempt = 0; ; attempt++) {
       try { await fs.rename(temp, filename); break; }
       catch (error) {
-        if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || attempt >= 9) throw error;
-        await new Promise(resolve => setTimeout(resolve, Math.min(250, 25 * 2 ** attempt)));
+        const remaining = retryUntil - performance.now();
+        if (!['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || remaining <= 0) throw error;
+        if (attempt === 0 && (await fs.lstat(filename).catch(() => null))?.isDirectory()) throw error;
+        const delay = Math.min(remaining, Math.min(50, 10 * (attempt + 1)) * (0.75 + Math.random() * 0.5));
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   } finally { await fs.rm(temp, { force: true }).catch(() => {}); }

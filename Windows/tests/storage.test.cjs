@@ -117,7 +117,10 @@ test('queued concurrent saves produce complete JSON and an ordered final backup'
       assert.ok(Array.isArray(value) && value.length === 1); reads++;
     }
   })();
-  try { await Promise.all(values.map(value => store.save(value))); }
+  try {
+    const results = await Promise.allSettled(values.map(value => store.save(value)));
+    for (const result of results) if (result.status === 'rejected') throw result.reason;
+  }
   finally { stopped = true; await watch; }
   assert.ok(reads > 0);
   assert.deepEqual(await store.load(), values.at(-1));
@@ -138,7 +141,7 @@ test('temporary Windows rename locks retry without removing the last good file',
   await atomicJSON(target, { previous: true });
   const original = fs.rename; let attempts = 0;
   fs.rename = async (from, to) => {
-    if (to === target && attempts++ < 2) {
+    if (to === target && attempts++ < 12) {
       assert.deepEqual(await readJSON(target), { previous: true });
       throw Object.assign(new Error('temporary reader lock'), { code: 'EPERM' });
     }
@@ -146,7 +149,7 @@ test('temporary Windows rename locks retry without removing the last good file',
   };
   try { await atomicJSON(target, { updated: true }); }
   finally { fs.rename = original; }
-  assert.equal(attempts, 3); assert.deepEqual(await readJSON(target), { updated: true });
+  assert.equal(attempts, 13); assert.deepEqual(await readJSON(target), { updated: true });
 });
 test('malformed JSON never silently falls back or leaks contents in error text', async t => {
   const { file } = await fixture(t);
