@@ -1,0 +1,3 @@
+Windows/** text eol=lf
+Windows/assets/*.ico binary
+Resources/SubtitleEngine/LICENSE-whisper.cpp text eol=lf
