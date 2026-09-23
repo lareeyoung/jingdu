@@ -2,7 +2,9 @@
 
 在 Windows 上逐帧研究收藏的视频，把镜头、台词和自己的观察放在同一条时间轴上。
 
-**当前版本：1.6.0-beta.1，开发与测试中。** 目标平台为 **Windows 10 / 11 x64**，不包含 Windows ARM 或 32 位版本。当前不提供已验收的下载入口；Windows 自动化验证和人工实机验收结果尚未确认。
+**当前版本：1.6.0-beta.1 同事测试版。** 目标平台为 **Windows 10 / 11 x64**，不包含 Windows ARM 或 32 位版本。已通过 Windows Server 2022 自动化检查，尚未完成人工 Windows 10 / 11 实机验收。
+
+[下载 Windows 安装程序或 ZIP](https://github.com/lareeyoung/jingdu/releases/tag/v1.6.0-beta.1-win)
 
 这是 Windows 第一期实现，并非 Mac 版的完整替代。[返回项目首页](../README.md)；首页现有截图来自 Mac 版。
 
@@ -49,7 +51,7 @@
 
 ### 准备本地语音模型
 
-安装包计划包含识别引擎，**不包含模型权重，也不会自动下载模型**。下载官方 [ggml-small.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true)，然后在“模型设置 → 选择已下载模型”中选择并保存。
+安装包已包含识别引擎，**不包含模型权重，也不会自动下载模型**。下载官方 [ggml-small.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin?download=true)，然后在“模型设置 → 选择已下载模型”中选择并保存。
 
 - 文件大小：487,601,967 字节，约 466 MiB。
 - 官方模型 SHA-1：`55356645c2b361a969dfd0ef2c5a50d530afd8d5`。
@@ -75,15 +77,22 @@
 
 ## 安装与验证状态
 
-Windows 安装包仍在构建、测试，下载链接将在验证后补充。预计提供 x64 安装程序和 ZIP 包，均不携带作者的 Key、视频或模型权重。
+从 [Windows 1.6.0-beta.1 下载页](https://github.com/lareeyoung/jingdu/releases/tag/v1.6.0-beta.1-win) 选择一种方式，并取得同次发行的 `SHA256SUMS` 与 `RELEASE.json`：
+
+- **安装程序**：下载 `Jingdu-1.6.0-beta.1-Windows-x64.exe`，运行后按提示安装。
+- **免安装 ZIP**：下载 `Jingdu-1.6.0-beta.1-Windows-x64.zip`，先完整解压，再运行文件夹中的 `镜读.exe`。请保留同目录的资源与程序文件，不要只复制一个 EXE。
+
+两种包均不携带作者的 Key、视频或模型权重。需要字幕识别时，按上文准备模型；使用 Seed 时填写自己的配置。
 
 测试包未使用受信任发布者签名，Windows 可能出现 SmartScreen 提示。请从本仓库 Releases 下载，核对发行版本和 SHA-256；公司管理电脑按 IT 要求安装。无需关闭系统保护。
 
-**当前不声称已经通过人工 Windows 实机验收。** 自动化测试、Windows runner 上的启动与媒体检查、实际用户电脑体验是不同的验证范围；后续发行说明会分别列出结果。
+已在 **Windows Server 2022** 构建环境通过 [本次自动化检查](https://github.com/lareeyoung/jingdu/actions/runs/35831092197)：67 项测试、媒体引擎启动、开发版与打包应用的播放和跳转检查，以及安装程序、ZIP 和发行清单生成。文件校验值与具体记录见 `SHA256SUMS`、`RELEASE.json`。
+
+**尚未验收的范围**：人工 Windows 10 / 11 使用、安装与卸载流程、真实 Whisper 模型推理，以及真实 Seed 服务请求。引擎能启动和离线测试通过，不代表这些流程已经实测通过。
 
 ## 从源码构建
 
-在 Windows x64 上安装 Node.js 24、npm 和 PowerShell，从仓库根目录执行：
+在 Windows x64 上准备 **Node.js 24、npm、PowerShell 7，以及 Visual Studio 2022 或 Build Tools 的 C++ x64 工具**。运行库准备脚本需要本机 Visual Studio 中可再分发的 x64 CRT 和 OpenMP 文件。然后在 PowerShell 7 中，从仓库根目录执行：
 
 ```powershell
 cd Windows
@@ -95,6 +104,6 @@ npm test
 npm run package:win
 ```
 
-准备脚本下载固定版本的 Windows 媒体工具、字幕引擎和运行库并校验文件；不是下载语音模型。打包结果输出到 `Windows/dist`，不会自动发布到 GitHub。`npm start` 用于开发启动，`npm run smoke` 用于启动检查。
+`prepare:media` 与 `prepare:whisper` 下载固定版本的媒体工具和字幕引擎并校验文件；`prepare-runtime.ps1` 从本机 Visual Studio 复制微软签名的 x64 运行库，验证签名后随应用提供，并非联网下载运行库。这些步骤不下载语音模型。打包结果输出到 `Windows/dist`，不会自动发布到 GitHub。`npm start` 用于开发启动，`npm run smoke` 用于启动检查。
 
 技术结构：Electron 提供窗口和系统能力，HTML / CSS / JavaScript 构成界面；本机媒体工具作为独立进程运行。FFmpeg / ffprobe 使用包含 GPLv3 组件的固定构建，资源包带许可、原始构建说明及源码索引，位于 `resources/media-licenses`（安装包内为 `resources/tools/media-licenses`）。这些索引说明二进制来源，不代表已附带全部依赖的完整源码归档。whisper.cpp 的 MIT 许可和版本记录也随工具资源提供；模型许可见仓库 [SubtitleEngine 说明](../Resources/SubtitleEngine)。

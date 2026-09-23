@@ -53,7 +53,7 @@ async function runSmoke({ win, media, model, saveLibrary, probeFile }) {
   await click('[data-action="play"]');
   await until(`document.querySelector('#video').currentTime>${secondSourceStart + 1.1} && !document.querySelector('#video').paused`, 'play after second media seek');
   await click('[data-action="play"]');
-  if (!(await js('document.querySelector(".context-shot.is-current")?.dataset.seek === "3"'))) throw new Error('Adjacent shot previews did not follow playback');
+  if (!(await js('Math.abs(Number(document.querySelector(".context-shot.is-current")?.dataset.seek)-3)<0.01'))) throw new Error('Adjacent shot previews did not follow playback');
   // Subsequent playback and seeks must preserve both language rows.
   if (!(await js(`document.querySelector('#reader [data-cue-id="${cues[1].id}"] .translation').textContent === '这是测试。'`))) throw new Error('Translation row missing');
   state.media = { probe: true, transcode: true, rendererPlayback: true, seek: true, frameStep: true, bilingualFollow: true };

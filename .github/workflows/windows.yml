@@ -164,7 +164,11 @@ jobs:
           cat > release-notes.md <<'NOTES'
           Windows x64 同事测试版。提供安装程序（EXE）和免安装 ZIP。
 
-          已在 Windows Server 2022 构建环境验证媒体引擎启动、离线测试，以及开发版和打包版的实际视频播放、跳转、转码。具体范围、源码提交和文件校验值见 RELEASE.json 与 SHA256SUMS。
+          支持多段素材导入、逐帧与切镜、时间轴笔记、Seed 脚本、六语字幕和中文翻译、台词双向跟随，以及跨项目收集灵感片段。音乐编辑、音乐混音播放和混剪成片导出尚未包含。
+
+          下载 EXE 安装，或完整解压 ZIP 后运行“镜读.exe”。详细用法和模型准备见 [Windows 使用说明](https://github.com/lareeyoung/jingdu/blob/main/Windows/README.md)。Mac 用户继续使用 [v1.5.3](https://github.com/lareeyoung/jingdu/releases/tag/v1.5.3)。
+
+          已在 Windows Server 2022 构建环境通过 67 项离线测试，验证媒体引擎启动，以及开发版和打包版的实际视频播放、跳转、逐帧和双语跟随。具体范围、源码提交和文件校验值见 RELEASE.json 与 SHA256SUMS。
 
           此版本未签名，Windows SmartScreen 可能提示未知发布者。尚未验证安装/卸载、真实 Whisper 模型推理或 Seed 服务请求。Whisper 模型需自行准备，API Key 由使用者在应用设置中填写，发布包不包含个人素材和账户。
           NOTES
